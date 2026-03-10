@@ -1,6 +1,4 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, session
-from flask_login import LoginManager, login_user, logout_user, login_required, current_user
-from flask_bcrypt import Bcrypt
 from database import (
     init_db, add_account, get_all_accounts, delete_account, 
     update_account, get_keywords, save_keywords, get_setting, 
@@ -8,47 +6,134 @@ from database import (
 )
 from radar import radar
 from config import Config
+import asyncio
 import os
+import threading
 
 app = Flask(__name__)
 app.secret_key = Config.SECRET_KEY
-bcrypt = Bcrypt(app)
-login_manager = LoginManager()
-login_manager.init_app(app)
-login_manager.login_view = 'login'
 
-@login_manager.user_loader
-def load_user(user_id):
-    return user_id
+# --- نظام تسجيل تليجرام ---
+active_users = {}
+user_lock = threading.Lock()
 
-@app.route('/')
-def index():
-    if 'user_id' in session:
-        return redirect(url_for('dashboard'))
-    return redirect(url_for('login'))
+def run_async(coro):
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+    return loop.run_until_complete(coro)
 
-@app.route('/login', methods=['GET', 'POST'])
-def login():
+@app.route('/telegram/login', methods=['GET', 'POST'])
+def telegram_login():
     if request.method == 'POST':
-        email = request.form['email']
+        api_id = request.form['api_id']
+        api_hash = request.form['api_hash']
+        phone = request.form['phone']
+        
+        session_id = phone.replace('+', '').replace(' ', '')
+        
+        with user_lock:
+            active_users[session_id] = {
+                'client': None,
+                'phone': phone,
+                'api_id': api_id,
+                'api_hash': api_hash,
+                'status': 'waiting_code'
+            }
+        
+        try:
+            from telethon import TelegramClient
+            client = TelegramClient('session', int(api_id), api_hash)
+            active_users[session_id]['client'] = client
+            
+            run_async(client.connect())
+            run_async(client.send_code_request(phone))
+            flash('تم إرسال الكود إلى تليجرام، أدخله في الصفحة التالية', 'success')
+            return redirect(url_for('verify_code', session_id=session_id))
+        except Exception as e:
+            flash(f'خطأ: {str(e)}', 'danger')
+            return redirect(url_for('telegram_login'))
+    
+    return render_template('telegram_login.html')
+
+@app.route('/telegram/verify_code', methods=['GET', 'POST'])
+def verify_code():
+    session_id = request.args.get('session_id') or request.form.get('session_id')
+    
+    if request.method == 'POST':
+        code = request.form['code']
+        
+        with user_lock:
+            if session_id not in active_users:
+                return redirect(url_for('telegram_login'))
+            
+            session_data = active_users[session_id]
+            client = session_data['client']
+            
+            try:
+                run_async(client.sign_in(phone=session_data['phone'], code=code))
+                
+                if client.is_user_authorized():
+                    me = run_async(client.get_me())
+                    user_id = me.id if me else None
+                    
+                    add_account(session_data['phone'], session_data['api_id'], session_data['api_hash'], None)
+                    
+                    session_data['status'] = 'logged_in'
+                    session_data['user_id'] = user_id
+                    flash('تم تسجيل الدخول بنجاح!', 'success')
+                    return redirect(url_for('dashboard'))
+                else:
+                    session_data['status'] = 'waiting_2fa'
+                    flash('يوجد تحقق بخطوتين، أدخل كلمة المرور', 'warning')
+                    return redirect(url_for('verify_2fa', session_id=session_id))
+                    
+            except Exception as e:
+                flash(f'خطأ: {str(e)}', 'danger')
+                return redirect(url_for('telegram_login'))
+    
+    return render_template('verify_code.html', session_id=session_id)
+
+@app.route('/telegram/verify_2fa', methods=['GET', 'POST'])
+def verify_2fa():
+    session_id = request.args.get('session_id') or request.form.get('session_id')
+    
+    if request.method == 'POST':
         password = request.form['password']
         
-        if email == Config.ADMIN_EMAIL and bcrypt.check_password_hash(password, Config.ADMIN_PASSWORD):
-            session['user_id'] = email
-            return redirect(url_for('dashboard'))
-        else:
-            flash('البريد الإلكتروني أو كلمة المرور غير صحيحة', 'danger')
+        with user_lock:
+            if session_id not in active_users:
+                return redirect(url_for('telegram_login'))
+            
+            session_data = active_users[session_id]
+            client = session_data['client']
+            
+            try:
+                run_async(client.sign_in(password=password))
+                
+                me = run_async(client.get_me())
+                user_id = me.id if me else None
+                
+                add_account(session_data['phone'], session_data['api_id'], session_data['api_hash'], None)
+                
+                session_data['status'] = 'logged_in'
+                session_data['user_id'] = user_id
+                flash('تم تسجيل الدخول بنجاح!', 'success')
+                return redirect(url_for('dashboard'))
+            except Exception as e:
+                flash(f'كلمة المرور خاطئة: {str(e)}', 'danger')
+                return redirect(url_for('verify_2fa', session_id=session_id))
     
-    return render_template('login.html')
-
-@app.route('/logout')
-def logout():
-    session.pop('user_id', None)
-    return redirect(url_for('login'))
+    return render_template('verify_2fa.html', session_id=session_id)
 
 @app.route('/dashboard')
-@login_required
 def dashboard():
+    # تحقق بسيط من الجلسة
+    if 'telegram_user' not in session:
+        return redirect(url_for('telegram_login'))
+    
     accounts = get_all_accounts()
     keywords = get_keywords()
     ai_enabled = get_setting('ai_enabled') == 'True' if get_setting('ai_enabled') else Config.AI_ENABLED
@@ -60,7 +145,6 @@ def dashboard():
                           radar_enabled=radar_enabled)
 
 @app.route('/api/accounts/add', methods=['POST'])
-@login_required
 def add_account_api():
     phone = request.form['phone']
     api_id = request.form['api_id']
@@ -75,14 +159,12 @@ def add_account_api():
     return redirect(url_for('dashboard'))
 
 @app.route('/api/accounts/delete/<phone>')
-@login_required
 def delete_account_api(phone):
     delete_account(phone)
     flash('تم حذف الحساب', 'success')
     return redirect(url_for('dashboard'))
 
 @app.route('/api/accounts/toggle/<phone>')
-@login_required
 def toggle_account(phone):
     accounts = get_all_accounts()
     for acc in accounts:
@@ -93,7 +175,6 @@ def toggle_account(phone):
     return redirect(url_for('dashboard'))
 
 @app.route('/api/keywords/save', methods=['POST'])
-@login_required
 def save_keywords_api():
     keywords_text = request.form['keywords']
     keywords = keywords_text.split('\n')
@@ -102,7 +183,6 @@ def save_keywords_api():
     return redirect(url_for('dashboard'))
 
 @app.route('/api/settings/ai', methods=['POST'])
-@login_required
 def toggle_ai():
     ai_enabled = request.form.get('ai_enabled') == 'on'
     set_setting('ai_enabled', 'True' if ai_enabled else 'False')
@@ -111,7 +191,6 @@ def toggle_ai():
     return redirect(url_for('dashboard'))
 
 @app.route('/api/radar/toggle', methods=['POST'])
-@login_required
 def toggle_radar():
     if radar.is_running():
         asyncio.run(radar.stop_radar())
@@ -124,7 +203,6 @@ def toggle_radar():
     return redirect(url_for('dashboard'))
 
 @app.route('/api/logs')
-@login_required
 def get_logs_api():
     logs = get_logs(100)
     return {'logs': [log['message'] for log in logs]}
