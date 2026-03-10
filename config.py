@@ -1,5 +1,6 @@
 import os
 from dotenv import load_dotenv
+from flask_bcrypt import Bcrypt
 
 load_dotenv()
 
@@ -23,3 +24,15 @@ class Config:
     # Radar Settings
     RADAR_ENABLED = os.environ.get('RADAR_ENABLED', 'False').lower() == 'true'
     LOG_FILE = 'radar.log'
+
+# تهيئة البcrypt
+bcrypt = Bcrypt()
+
+# تشفير كلمة السر عند بدء التطبيق
+def init_password():
+    """تشفير كلمة السر عند بدء التطبيق"""
+    if not ADMIN_PASSWORD.startswith('$2b$'):
+        hashed = bcrypt.generate_password_hash(ADMIN_PASSWORD).decode('utf-8')
+        os.environ['ADMIN_PASSWORD'] = hashed
+        return hashed
+    return ADMIN_PASSWORD
