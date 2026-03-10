@@ -17,7 +17,7 @@
     <nav class="navbar navbar-dark">
         <div class="container-fluid">
             <span class="navbar-brand mb-0 h1">🚀 رادار تليجرام الذكي</span>
-            {% if session.get('user_id') %}
+            {% if session.get('telegram_user') %}
             <a href="{{ url_for('logout') }}" class="btn btn-outline-light btn-sm">تسجيل خروج</a>
             {% endif %}
         </div>
