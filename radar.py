@@ -15,7 +15,6 @@ class Radar:
         self.lock = threading.Lock()
     
     async def start_client(self, phone, api_id, api_hash, alert_group):
-        """بدء عميل تليجرام"""
         try:
             client = TelegramClient(f'sessions/{phone}', int(api_id), api_hash)
             await client.connect()
@@ -24,7 +23,6 @@ class Radar:
                 add_log(f"❌ حساب {phone} غير مفعل - يحتاج تسجيل دخول")
                 return False
             
-            # إضافة مستمع للرسائل
             @client.on(events.NewMessage(chats=[alert_group]))
             async def handler(event):
                 await self.handle_message(event, phone, alert_group)
@@ -37,19 +35,15 @@ class Radar:
             return False
     
     async def handle_message(self, event, phone, alert_group):
-        """معالجة الرسالة - الذكاء الاصطناعي هو الحكم"""
         message = event.message
         sender = await event.get_sender()
         
-        # تجاهل الرسائل الخاصة
         if not isinstance(sender, (User, Chat, Channel)):
             return
         
-        # تجاهل رسائل البوتات
         if sender.bot:
             return
         
-        # تجاهل رسائل الحساب نفسه
         if sender.id == await self.clients[phone].get_me():
             return
         
@@ -57,7 +51,6 @@ class Radar:
         if not text:
             return
         
-        # البحث عن الكلمات المفتاحية
         keywords = get_keywords()
         found_keyword = None
         for keyword in keywords:
@@ -70,13 +63,11 @@ class Radar:
         
         add_log(f"🔍 رصد كلمة '{found_keyword}' في مجموعة {alert_group}")
         
-        # === الذكاء الاصطناعي هو الحكم الرئيسي ===
         if Config.AI_ENABLED:
             result = await classify_message(text)
             add_log(f"🤖 تصنيف AI: {result['type']} (ثقة: {result['confidence']}%)")
             add_log(f"📝 السبب: {result['reason']}")
             
-            # القرار النهائي يعتمد على AI
             if result['type'] == 'marketer' and result['confidence'] > 60:
                 add_log(f"🚫 **AI قرر: معلن** - تم تجاهل الرسالة")
                 return
@@ -87,18 +78,14 @@ class Radar:
         else:
             add_log("🤖 AI غير مفعل - إرسال احتياطي")
         
-        # إرسال الإشعار
         await self.send_alert(event, sender, alert_group, text, found_keyword)
     
     async def send_alert(self, event, sender, alert_group, text, keyword):
-        """إرسال الإشعار للمجموعة"""
         try:
-            # محاولة إعادة التوجيه
             try:
                 await event.forward(alert_group)
                 add_log(f"✅ تم إعادة توجيه الرسالة بنجاح")
             except:
-                # إرسال نسخة
                 footer = f"""
 🚨 **رادار ذكي - طلب مساعدة**
 ━━━━━━━━━━━━━━━━━━━━
@@ -116,7 +103,6 @@ class Radar:
             add_log(f"❌ خطأ في الإرسال: {str(e)}")
     
     async def start_radar(self):
-        """بدء الرادار"""
         self.running = True
         add_log("🚀 بدء تشغيل الرادار...")
         
@@ -128,20 +114,3 @@ class Radar:
                     account['api_id'],
                     account['api_hash'],
                     account['alert_group']
-                )
-        
-        add_log("✅ الرادار يعمل!")
-    
-    async def stop_radar(self):
-        """إيقاف الرادار"""
-        self.running = False
-        for client in self.clients.values():
-            await client.disconnect()
-        self.clients.clear()
-        add_log("🛑 الرادار متوقف")
-    
-    def is_running(self):
-        return self.running
-
-# إنشاء كائن الرادار
-radar = Radar()
