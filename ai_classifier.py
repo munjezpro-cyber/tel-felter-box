@@ -67,7 +67,6 @@ async def classify_message(message):
                 if response.status == 200:
                     data = await response.json()
                     content = data['choices'][0]['message']['content']
-                    # استخراج JSON من النص
                     try:
                         json_start = content.find('{')
                         json_end = content.rfind('}') + 1
