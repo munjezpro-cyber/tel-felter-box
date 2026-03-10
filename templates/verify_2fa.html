@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block title %}التحقق بخطوتين{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <h4 class="card-title text-center mb-4">🔑 التحقق بخطوتين</h4>
+                <form action="{{ url_for('verify_2fa') }}" method="POST">
+                    <input type="hidden" name="session_id" value="{{ session_id }}">
+                    <div class="mb-3">
+                        <label class="form-label">كلمة المرور</label>
+                        <input type="password" name="password" class="form-control" placeholder="كلمة المرور" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">دخول</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
