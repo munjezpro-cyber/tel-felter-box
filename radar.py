@@ -37,7 +37,7 @@ class Radar:
             return False
     
     async def handle_message(self, event, phone, alert_group):
-        """معالجة الرسالة"""
+        """معالجة الرسالة - الذكاء الاصطناعي هو الحكم"""
         message = event.message
         sender = await event.get_sender()
         
@@ -70,16 +70,22 @@ class Radar:
         
         add_log(f"🔍 رصد كلمة '{found_keyword}' في مجموعة {alert_group}")
         
-        # تصنيف الرسالة
+        # === الذكاء الاصطناعي هو الحكم الرئيسي ===
         if Config.AI_ENABLED:
             result = await classify_message(text)
-            add_log(f"🤖 تصنيف: {result['type']} (ثقة: {result['confidence']}%)")
+            add_log(f"🤖 تصنيف AI: {result['type']} (ثقة: {result['confidence']}%)")
+            add_log(f"📝 السبب: {result['reason']}")
             
+            # القرار النهائي يعتمد على AI
             if result['type'] == 'marketer' and result['confidence'] > 60:
-                add_log(f"🚫 تم تجاهل معلن (ثقة: {result['confidence']}%)")
+                add_log(f"🚫 **AI قرر: معلن** - تم تجاهل الرسالة")
                 return
+            elif result['type'] == 'seeker' or result['confidence'] <= 60:
+                add_log(f"✅ **AI قرر: طالب** - سيتم إرسال الإشعار")
+            else:
+                add_log(f"⚠️ **AI غير متأكد** - إرسال احتياطي")
         else:
-            add_log("🤖 AI غير مفعل - إرسال الرسالة")
+            add_log("🤖 AI غير مفعل - إرسال احتياطي")
         
         # إرسال الإشعار
         await self.send_alert(event, sender, alert_group, text, found_keyword)
