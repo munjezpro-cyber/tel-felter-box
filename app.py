@@ -10,7 +10,7 @@ import asyncio
 import os
 import threading
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder='templates', static_folder='static')
 app.secret_key = Config.SECRET_KEY
 
 # --- نظام تسجيل تليجرام ---
@@ -24,6 +24,12 @@ def run_async(coro):
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
     return loop.run_until_complete(coro)
+
+@app.route('/')
+def index():
+    if 'telegram_user' in session:
+        return redirect(url_for('dashboard'))
+    return redirect(url_for('telegram_login'))
 
 @app.route('/telegram/login', methods=['GET', 'POST'])
 def telegram_login():
@@ -81,6 +87,7 @@ def verify_code():
                     
                     add_account(session_data['phone'], session_data['api_id'], session_data['api_hash'], None)
                     
+                    session['telegram_user'] = session_data['phone']
                     session_data['status'] = 'logged_in'
                     session_data['user_id'] = user_id
                     flash('تم تسجيل الدخول بنجاح!', 'success')
@@ -118,6 +125,7 @@ def verify_2fa():
                 
                 add_account(session_data['phone'], session_data['api_id'], session_data['api_hash'], None)
                 
+                session['telegram_user'] = session_data['phone']
                 session_data['status'] = 'logged_in'
                 session_data['user_id'] = user_id
                 flash('تم تسجيل الدخول بنجاح!', 'success')
@@ -130,7 +138,6 @@ def verify_2fa():
 
 @app.route('/dashboard')
 def dashboard():
-    # تحقق بسيط من الجلسة
     if 'telegram_user' not in session:
         return redirect(url_for('telegram_login'))
     
@@ -146,6 +153,9 @@ def dashboard():
 
 @app.route('/api/accounts/add', methods=['POST'])
 def add_account_api():
+    if 'telegram_user' not in session:
+        return redirect(url_for('telegram_login'))
+    
     phone = request.form['phone']
     api_id = request.form['api_id']
     api_hash = request.form['api_hash']
@@ -160,12 +170,18 @@ def add_account_api():
 
 @app.route('/api/accounts/delete/<phone>')
 def delete_account_api(phone):
+    if 'telegram_user' not in session:
+        return redirect(url_for('telegram_login'))
+    
     delete_account(phone)
     flash('تم حذف الحساب', 'success')
     return redirect(url_for('dashboard'))
 
 @app.route('/api/accounts/toggle/<phone>')
 def toggle_account(phone):
+    if 'telegram_user' not in session:
+        return redirect(url_for('telegram_login'))
+    
     accounts = get_all_accounts()
     for acc in accounts:
         if acc['phone'] == phone:
@@ -176,6 +192,9 @@ def toggle_account(phone):
 
 @app.route('/api/keywords/save', methods=['POST'])
 def save_keywords_api():
+    if 'telegram_user' not in session:
+        return redirect(url_for('telegram_login'))
+    
     keywords_text = request.form['keywords']
     keywords = keywords_text.split('\n')
     save_keywords(keywords)
@@ -184,6 +203,9 @@ def save_keywords_api():
 
 @app.route('/api/settings/ai', methods=['POST'])
 def toggle_ai():
+    if 'telegram_user' not in session:
+        return redirect(url_for('telegram_login'))
+    
     ai_enabled = request.form.get('ai_enabled') == 'on'
     set_setting('ai_enabled', 'True' if ai_enabled else 'False')
     Config.AI_ENABLED = ai_enabled
@@ -192,6 +214,9 @@ def toggle_ai():
 
 @app.route('/api/radar/toggle', methods=['POST'])
 def toggle_radar():
+    if 'telegram_user' not in session:
+        return redirect(url_for('telegram_login'))
+    
     if radar.is_running():
         asyncio.run(radar.stop_radar())
         set_setting('radar_enabled', 'False')
@@ -204,8 +229,16 @@ def toggle_radar():
 
 @app.route('/api/logs')
 def get_logs_api():
+    if 'telegram_user' not in session:
+        return redirect(url_for('telegram_login'))
+    
     logs = get_logs(100)
     return {'logs': [log['message'] for log in logs]}
+
+@app.route('/logout')
+def logout():
+    session.pop('telegram_user', None)
+    return redirect(url_for('telegram_login'))
 
 if __name__ == '__main__':
     init_db()
