@@ -50,7 +50,7 @@ class Radar:
             return
         
         # تجاهل رسائل الحساب نفسه
-        if sender.id == await client.get_me():
+        if sender.id == await self.clients[phone].get_me():
             return
         
         text = message.text
@@ -97,4 +97,45 @@ class Radar:
 🚨 **رادار ذكي - طلب مساعدة**
 ━━━━━━━━━━━━━━━━━━━━
 📝 **النص الأصلي**: {text}
-👤 **المرسل**: {sender.first_name} {sender.last
+👤 **المرسل**: {sender.first_name} {sender.last_name or ''}
+🏢 **المجموعة**: {alert_group}
+━━━━━━━━━━━━━━━━━━━━
+"""
+                await self.clients[alert_group].send_message(alert_group, footer)
+                add_log(f"✅ تم إرسال نسخة من الرسالة")
+        except FloodWaitError as e:
+            add_log(f"⚠️ FloodWait: انتظر {e.seconds} ثانية")
+            await asyncio.sleep(e.seconds)
+        except Exception as e:
+            add_log(f"❌ خطأ في الإرسال: {str(e)}")
+    
+    async def start_radar(self):
+        """بدء الرادار"""
+        self.running = True
+        add_log("🚀 بدء تشغيل الرادار...")
+        
+        accounts = get_all_accounts()
+        for account in accounts:
+            if account['enabled']:
+                await self.start_client(
+                    account['phone'],
+                    account['api_id'],
+                    account['api_hash'],
+                    account['alert_group']
+                )
+        
+        add_log("✅ الرادار يعمل!")
+    
+    async def stop_radar(self):
+        """إيقاف الرادار"""
+        self.running = False
+        for client in self.clients.values():
+            await client.disconnect()
+        self.clients.clear()
+        add_log("🛑 الرادار متوقف")
+    
+    def is_running(self):
+        return self.running
+
+# إنشاء كائن الرادار
+radar = Radar()
