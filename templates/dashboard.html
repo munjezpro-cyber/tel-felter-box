@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block title %}لوحة التحكم - رادار تليجرام{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- حالة الرادار -->
+    <div class="col-md-12 mb-4">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">حالة الرادار</h5>
+                <p class="card-text">
+                    الحالة: <span class="status-{{ 'active' if radar_enabled else 'inactive' }}">
+                        {{ 'يعمل' if radar_enabled else 'متوقف' }}
+                    </span>
+                </p>
+                <form action="{{ url_for('toggle_radar') }}" method="POST">
+                    <button type="submit" class="btn btn-{{ 'danger' if radar_enabled else 'success' }}">
+                        {{ 'إيقاف الرادار' if radar_enabled else 'تشغيل الرادار' }}
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- إضافة حساب -->
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">إضافة حساب تليجرام</h5>
+                <form action="{{ url_for('add_account_api') }}" method="POST">
+                    <div class="mb-3">
+                        <label class="form-label">رقم الهاتف</label>
+                        <input type="text" name="phone" class="form-control" placeholder="+967XXXXXXXXX" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">API ID</label>
+                        <input type="number" name="api_id" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">API HASH</label>
+                        <input type="text" name="api_hash" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">مجموعة الإشعارات (اختياري)</label>
+                        <input type="text" name="alert_group" class="form-control" placeholder="@groupname أو ID">
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">إضافة</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- قائمة الحسابات -->
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">الحسابات المضافة</h5>
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>رقم الهاتف</th>
+                            <th>الحالة</th>
+                            <th>إجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for account in accounts %}
+                        <tr>
+                            <td>{{ account.phone }}</td>
+                            <td>
+                                <span class="status-{{ 'active' if account.enabled else 'inactive' }}">
+                                    {{ 'نشط' if account.enabled else 'معطل' }}
+                                </span>
+                            </td>
+                            <td>
+                                <a href="{{ url_for('toggle_account', phone=account.phone) }}" class="btn btn-sm btn-info">
+                                    {{ 'تعطيل' if account.enabled else 'تفعيل' }}
+                                </a>
+                                <a href="{{ url_for('delete_account_api', phone=account.phone) }}" class="btn btn-sm btn-danger">
+                                    حذف
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
