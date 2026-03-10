@@ -392,4 +392,131 @@ def verify_2fa():
         password = request.form['password']
         
         with user_lock:
-            if session_id not in active_users:
+                        if session_id not in active_users:
+                return redirect(url_for('telegram_login'))
+            
+            session_data = active_users[session_id]
+            client = session_data['client']
+            
+            try:
+                run_async(client.sign_in(password=password))
+                
+                me = run_async(client.get_me())
+                user_id = me.id if me else None
+                
+                add_account(session_data['phone'], session_data['api_id'], session_data['api_hash'], None)
+                
+                session['telegram_user'] = session_data['phone']
+                session_data['status'] = 'logged_in'
+                session_data['user_id'] = user_id
+                flash('تم تسجيل الدخول بنجاح!', 'success')
+                return redirect(url_for('dashboard'))
+            except Exception as e:
+                flash(f'كلمة المرور خاطئة: {str(e)}', 'danger')
+                return redirect(url_for('verify_2fa', session_id=session_id))
+    
+    return get_html_page('verify_2fa', session_id=session_id)
+
+@app.route('/dashboard')
+def dashboard():
+    if 'telegram_user' not in session:
+        return redirect(url_for('telegram_login'))
+    
+    accounts = get_all_accounts()
+    keywords = get_keywords()
+    ai_enabled = get_setting('ai_enabled') == 'True' if get_setting('ai_enabled') else Config.AI_ENABLED
+    radar_enabled = radar.is_running()
+    return get_html_page('dashboard', keywords=keywords, accounts=accounts, ai_enabled=ai_enabled, radar_enabled=radar_enabled)
+
+@app.route('/api/accounts/add', methods=['POST'])
+def add_account_api():
+    if 'telegram_user' not in session:
+        return redirect(url_for('telegram_login'))
+    
+    phone = request.form['phone']
+    api_id = request.form['api_id']
+    api_hash = request.form['api_hash']
+    alert_group = request.form.get('alert_group', '')
+    
+    if add_account(phone, api_id, api_hash, alert_group):
+        flash('تم إضافة الحساب بنجاح', 'success')
+    else:
+        flash('فشل إضافة الحساب', 'danger')
+    
+    return redirect(url_for('dashboard'))
+
+@app.route('/api/accounts/delete/<phone>')
+def delete_account_api(phone):
+    if 'telegram_user' not in session:
+        return redirect(url_for('telegram_login'))
+    
+    delete_account(phone)
+    flash('تم حذف الحساب', 'success')
+    return redirect(url_for('dashboard'))
+
+@app.route('/api/accounts/toggle/<phone>')
+def toggle_account(phone):
+    if 'telegram_user' not in session:
+        return redirect(url_for('telegram_login'))
+    
+    accounts = get_all_accounts()
+    for acc in accounts:
+        if acc['phone'] == phone:
+            update_account(phone, enabled=not acc['enabled'])
+            break
+    flash('تم تحديث حالة الحساب', 'success')
+    return redirect(url_for('dashboard'))
+
+@app.route('/api/keywords/save', methods=['POST'])
+def save_keywords_api():
+    if 'telegram_user' not in session:
+        return redirect(url_for('telegram_login'))
+    
+    keywords_text = request.form['keywords']
+    keywords = keywords_text.split('\n')
+    save_keywords(keywords)
+    flash('تم حفظ الكلمات', 'success')
+    return redirect(url_for('dashboard'))
+
+@app.route('/api/settings/ai', methods=['POST'])
+def toggle_ai():
+    if 'telegram_user' not in session:
+        return redirect(url_for('telegram_login'))
+    
+    ai_enabled = request.form.get('ai_enabled') == 'on'
+    set_setting('ai_enabled', 'True' if ai_enabled else 'False')
+    Config.AI_ENABLED = ai_enabled
+    flash('تم تحديث إعدادات الذكاء الاصطناعي', 'success')
+    return redirect(url_for('dashboard'))
+
+@app.route('/api/radar/toggle', methods=['POST'])
+def toggle_radar():
+    if 'telegram_user' not in session:
+        return redirect(url_for('telegram_login'))
+    
+    if radar.is_running():
+        asyncio.run(radar.stop_radar())
+        set_setting('radar_enabled', 'False')
+        flash('تم إيقاف الرادار', 'success')
+    else:
+        asyncio.run(radar.start_radar())
+        set_setting('radar_enabled', 'True')
+        flash('تم تشغيل الرادار', 'success')
+    return redirect(url_for('dashboard'))
+
+@app.route('/api/logs')
+def get_logs_api():
+    if 'telegram_user' not in session:
+        return redirect(url_for('telegram_login'))
+    
+    logs = get_logs(100)
+    return {'logs': [log['message'] for log in logs]}
+
+@app.route('/logout')
+def logout():
+    session.pop('telegram_user', None)
+    return redirect(url_for('telegram_login'))
+
+if __name__ == '__main__':
+    init_db()
+    app.run(host='0.0.0.0', port=8000)
