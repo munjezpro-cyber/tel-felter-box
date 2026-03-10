@@ -109,8 +109,24 @@ class Radar:
         accounts = get_all_accounts()
         for account in accounts:
             if account['enabled']:
-                await self.start_client(
+                                await self.start_client(
                     account['phone'],
                     account['api_id'],
                     account['api_hash'],
                     account['alert_group']
+                )
+        
+        add_log("✅ الرادار يعمل!")
+    
+    async def stop_radar(self):
+        self.running = False
+        for client in self.clients.values():
+            await client.disconnect()
+        self.clients.clear()
+        add_log("🛑 الرادار متوقف")
+    
+    def is_running(self):
+        return self.running
+
+# إنشاء كائن الرادار
+radar = Radar()
