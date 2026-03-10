@@ -147,26 +147,20 @@ def telegram_login():
 @app.route('/telegram/verify_code', methods=['GET', 'POST'])
 def verify_code():
     session_id = request.args.get('session_id') or request.form.get('session_id')
-    
     if request.method == 'POST':
         code = request.form['code']
-        
+        from telethon.errors import SessionPasswordNeededError
         with user_lock:
             if session_id not in active_users:
                 return redirect(url_for('telegram_login'))
-            
             session_data = active_users[session_id]
             client = session_data['client']
-            
             try:
                 run_async(client.sign_in(phone=session_data['phone'], code=code))
-                
                 if client.is_user_authorized():
                     me = run_async(client.get_me())
                     user_id = me.id if me else None
-                    
                     add_account(session_data['phone'], session_data['api_id'], session_data['api_hash'], None)
-                    
                     session['telegram_user'] = session_data['phone']
                     session_data['status'] = 'logged_in'
                     session_data['user_id'] = user_id
@@ -176,11 +170,13 @@ def verify_code():
                     session_data['status'] = 'waiting_2fa'
                     flash('يوجد تحقق بخطوتين، أدخل كلمة المرور', 'warning')
                     return redirect(url_for('verify_2fa', session_id=session_id))
-                    
+            except SessionPasswordNeededError:
+                session_data['status'] = 'waiting_2fa'
+                flash('يوجد تحقق بخطوتين، أدخل كلمة المرور', 'warning')
+                return redirect(url_for('verify_2fa', session_id=session_id))
             except Exception as e:
                 flash(f'خطأ: {str(e)}', 'danger')
                 return redirect(url_for('telegram_login'))
-    
     from flask import render_template
     return render_template('verify_code.html', session_id=session_id)
 
