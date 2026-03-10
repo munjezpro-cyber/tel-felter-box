@@ -88,3 +88,59 @@
             </div>
         </div>
     </div>
+    
+    <!-- الكلمات المفتاحية -->
+    <div class="col-md-12 mb-4">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">الكلمات المفتاحية</h5>
+                <form action="{{ url_for('save_keywords_api') }}" method="POST">
+                    <textarea name="keywords" class="form-control" rows="10" required>{{ keywords|join('\n') }}</textarea>
+                    <button type="submit" class="btn btn-primary mt-2">حفظ الكلمات</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- إعدادات الذكاء الاصطناعي -->
+    <div class="col-md-12 mb-4">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">إعدادات الذكاء الاصطناعي</h5>
+                <form action="{{ url_for('toggle_ai') }}" method="POST">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" name="ai_enabled" {% if ai_enabled %}checked{% endif %}>
+                        <label class="form-check-label">تفعيل تصنيف الذكاء الاصطناعي</label>
+                    </div>
+                    <button type="submit" class="btn btn-primary mt-2">حفظ الإعدادات</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- سجل الأحداث -->
+    <div class="col-md-12 mb-4">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">سجل الأحداث</h5>
+                <textarea id="logs" class="form-control" rows="10" readonly></textarea>
+                <button onclick="updateLogs()" class="btn btn-primary mt-2">تحديث السجل</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function updateLogs() {
+    const response = await fetch('/api/logs');
+    const data = await response.json();
+    document.getElementById('logs').value = data.logs.join('\n');
+}
+
+// تحديث تلقائي كل 5 ثواني
+setInterval(updateLogs, 5000);
+updateLogs();
+</script>
+{% endblock %}
