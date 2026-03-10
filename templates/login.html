@@ -1,23 +1,27 @@
 {% extends "base.html" %}
 
-{% block title %}تسجيل الدخول - رادار تليجرام{% endblock %}
+{% block title %}تسجيل تليجرام{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
-    <div class="col-md-4">
+    <div class="col-md-5">
         <div class="card">
             <div class="card-body">
-                <h4 class="card-title text-center mb-4">تسجيل الدخول</h4>
-                <form method="POST">
+                <h4 class="card-title text-center mb-4">🔐 تسجيل دخول تليجرام</h4>
+                <form action="{{ url_for('telegram_login') }}" method="POST">
                     <div class="mb-3">
-                        <label class="form-label">البريد الإلكتروني</label>
-                        <input type="email" name="email" class="form-control" required>
+                        <label class="form-label">API ID</label>
+                        <input type="number" name="api_id" class="form-control" placeholder="مثال: 12345678" required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">كلمة المرور</label>
-                        <input type="password" name="password" class="form-control" required>
+                        <label class="form-label">API HASH</label>
+                        <input type="text" name="api_hash" class="form-control" placeholder="من my.telegram.org" required>
                     </div>
-                    <button type="submit" class="btn btn-primary w-100">دخول</button>
+                    <div class="mb-3">
+                        <label class="form-label">رقم الهاتف</label>
+                        <input type="text" name="phone" class="form-control" placeholder="+967XXXXXXXXX" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">إرسال الكود</button>
                 </form>
             </div>
         </div>
