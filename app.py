@@ -141,7 +141,8 @@ def telegram_login():
             flash(f'خطأ: {str(e)}', 'danger')
             return redirect(url_for('telegram_login'))
     
-    return get_html_page('login')
+    from flask import render_template
+    return render_template('login.html')
 
 @app.route('/telegram/verify_code', methods=['GET', 'POST'])
 def verify_code():
@@ -180,7 +181,8 @@ def verify_code():
                 flash(f'خطأ: {str(e)}', 'danger')
                 return redirect(url_for('telegram_login'))
     
-    return get_html_page('verify_code', session_id=session_id)
+    from flask import render_template
+    return render_template('verify_code.html', session_id=session_id)
 
 @app.route('/telegram/verify_2fa', methods=['GET', 'POST'])
 def verify_2fa():
@@ -208,7 +210,8 @@ def verify_2fa():
                 flash(f'كلمة المرور خاطئة: {str(e)}', 'danger')
                 return redirect(url_for('verify_2fa', session_id=session_id))
     
-    return get_html_page('verify_2fa', session_id=session_id)
+    from flask import render_template
+    return render_template('verify_2fa.html', session_id=session_id)
 
 @app.route('/dashboard')
 def dashboard():
