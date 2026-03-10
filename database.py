@@ -1,18 +1,14 @@
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from config import Config
-import os
 
 def get_db_connection():
-    """الحصول على اتصال بقاعدة البيانات"""
     return psycopg2.connect(Config.DATABASE_URL)
 
 def init_db():
-    """تهيئة قاعدة البيانات"""
     conn = get_db_connection()
     cursor = conn.cursor()
     
-    # جدول الحسابات
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS accounts (
             phone TEXT PRIMARY KEY,
@@ -24,7 +20,6 @@ def init_db():
         )
     ''')
     
-    # جدول الكلمات المفتاحية
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS keywords (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -32,7 +27,6 @@ def init_db():
         )
     ''')
     
-    # جدول الإعدادات
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS settings (
             key TEXT PRIMARY KEY,
@@ -40,7 +34,6 @@ def init_db():
         )
     ''')
     
-    # جدول السجلات
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS logs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -49,7 +42,6 @@ def init_db():
         )
     ''')
     
-    # إضافة كلمات افتراضية
     default_keywords = [
         'طلب', 'مساعدة', 'ساعدوني', 'ساعدني', 'أبي أحد', 'أبي حد', 'أبي مساعدة',
         'محتاج', 'محتاجة', 'ضروري', 'مستعجل', 'أرجوكم', 'لو سمحتم', 'واجب', 'واجبات',
@@ -85,7 +77,6 @@ def init_db():
     conn.close()
 
 def add_account(phone, api_id, api_hash, alert_group=None):
-    """إضافة حساب جديد"""
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
@@ -104,7 +95,6 @@ def add_account(phone, api_id, api_hash, alert_group=None):
         conn.close()
 
 def get_all_accounts():
-    """الحصول على جميع الحسابات"""
     conn = get_db_connection()
     cursor = conn.cursor(cursor_factory=RealDictCursor)
     cursor.execute('SELECT * FROM accounts ORDER BY created_at DESC')
@@ -114,7 +104,6 @@ def get_all_accounts():
     return accounts
 
 def delete_account(phone):
-    """حذف حساب"""
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute('DELETE FROM accounts WHERE phone = %s', (phone,))
@@ -123,7 +112,6 @@ def delete_account(phone):
     conn.close()
 
 def update_account(phone, alert_group=None, enabled=None):
-    """تحديث حساب"""
     conn = get_db_connection()
     cursor = conn.cursor()
     if alert_group is not None:
@@ -135,7 +123,6 @@ def update_account(phone, alert_group=None, enabled=None):
     conn.close()
 
 def get_keywords():
-    """الحصول على جميع الكلمات"""
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute('SELECT keyword FROM keywords ORDER BY id')
@@ -145,7 +132,6 @@ def get_keywords():
     return keywords
 
 def save_keywords(keywords):
-    """حفظ الكلمات"""
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute('DELETE FROM keywords')
@@ -157,7 +143,6 @@ def save_keywords(keywords):
     conn.close()
 
 def get_setting(key):
-    """الحصول على إعداد"""
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute('SELECT value FROM settings WHERE key = %s', (key,))
@@ -167,7 +152,6 @@ def get_setting(key):
     return result[0] if result else None
 
 def set_setting(key, value):
-    """حفظ إعداد"""
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute('''
@@ -180,7 +164,6 @@ def set_setting(key, value):
     conn.close()
 
 def add_log(message):
-    """إضافة سجل"""
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute('INSERT INTO logs (message) VALUES (%s)', (message,))
@@ -189,7 +172,6 @@ def add_log(message):
     conn.close()
 
 def get_logs(limit=100):
-    """الحصول على آخر السجلات"""
     conn = get_db_connection()
     cursor = conn.cursor(cursor_factory=RealDictCursor)
     cursor.execute('SELECT * FROM logs ORDER BY created_at DESC LIMIT %s', (limit,))
