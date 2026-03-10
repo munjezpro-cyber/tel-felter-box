@@ -55,7 +55,7 @@
     <div class="col-md-6 mb-4">
         <div class="card">
             <div class="card-body">
-                <h5 class="card-title">الحسابات المضافة</h5>
+                <h5 class="card-title">الحسابات المضافة ({{ accounts|length }})</h5>
                 <table class="table table-striped">
                     <thead>
                         <tr>
@@ -110,8 +110,9 @@
                 <form action="{{ url_for('toggle_ai') }}" method="POST">
                     <div class="form-check form-switch">
                         <input class="form-check-input" type="checkbox" name="ai_enabled" {% if ai_enabled %}checked{% endif %}>
-                        <label class="form-check-label">تفعيل تصنيف الذكاء الاصطناعي</label>
+                        <label class="form-check-label">تفعيل تصنيف الذكاء الاصطناعي (الحكم الرئيسي)</label>
                     </div>
+                    <p class="text-muted small">الذكاء الاصطناعي سيقرر تلقائياً إذا كان المرسل طالباً أو معلناً</p>
                     <button type="submit" class="btn btn-primary mt-2">حفظ الإعدادات</button>
                 </form>
             </div>
