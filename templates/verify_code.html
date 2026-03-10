@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block title %}التحقق من الكود{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <h4 class="card-title text-center mb-4">📱 أدخل الكود</h4>
+                <form action="{{ url_for('verify_code') }}" method="POST">
+                    <input type="hidden" name="session_id" value="{{ session_id }}">
+                    <div class="mb-3">
+                        <label class="form-label">الكود المرسل</label>
+                        <input type="text" name="code" class="form-control" placeholder="أدخل الكود" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">تأكيد</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
